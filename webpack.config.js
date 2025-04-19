@@ -4,6 +4,7 @@ const nodeExternals = require('webpack-node-externals');
 
 const commonConfig = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+  // emit source-maps for debugging
   devtool: process.env.NODE_ENV === 'production' ? false : 'source-map',
   resolve: {
     extensions: ['.tsx', '.ts', '.js'],
@@ -14,6 +15,9 @@ const commonConfig = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js',
+    // ensure source-map references point to absolute paths
+    devtoolModuleFilenameTemplate: '[absolute-resource-path]',
+    devtoolFallbackModuleFilenameTemplate: '[absolute-resource-path]?[hash]'
   },
 };
 

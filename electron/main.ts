@@ -1,23 +1,33 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import { SerialPort } from 'serialport';
+import config, { getDevServerUrl } from './config'; // Import our config
 
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 800,
+    width: config.window.width,
+    height: config.window.height,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     },
-    backgroundColor: '#111827' // dark background to match the theme
+    backgroundColor: config.window.backgroundColor
   });
 
   // In development, load from localhost, in production load from file
-  mainWindow.loadFile(path.join(__dirname, '../index.html'));
+  console.log('▶ NODE_ENV is:', process.env.NODE_ENV);
+  if (process.env.NODE_ENV === 'development') {
+    // Load from webpack dev server in development using config
+    mainWindow.loadURL(getDevServerUrl());
+    // Open DevTools automatically in development
+    mainWindow.webContents.openDevTools();
+  } else {
+    // Load from file in production
+    mainWindow.loadFile(path.join(__dirname, '../index.html'));
+  }
 }
 
 // Handle serial port listing
