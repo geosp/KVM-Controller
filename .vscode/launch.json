@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    // ───────────────────────────────────────────────────────────
+    // 1) Kick off your full "dev" pipeline (serve + electron --inspect)
+    {
+      "name": "Run Dev",
+      "type": "pwa-node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",             // or "npm" / "yarn"
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "envFile": "${workspaceFolder}/.env",
+      
+      // this helps VS Code automatically attach to child processes (like electron)
+      "autoAttachChildProcesses": true  
+    },
+
+    // ───────────────────────────────────────────────────────────
+    // 2) Attach debugger to Electron's --inspect=9229 port
+    {
+      "name": "Attach to Electron",
+      "type": "pwa-node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "envFile": "${workspaceFolder}/.env",
+      
+      // enable sourcemap support and tell VS Code where to find your compiled JS
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/dist/electron/**/*.js"
+      ],
+
+      // if your maps use webpack paths, these overrides map them back to your files
+      "sourceMapPathOverrides": {
+        "webpack:///./*": "${workspaceFolder}/*",
+        "webpack:///*":   "${workspaceFolder}/*"
+      },
+
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    }
+
+  ],
+
+  // ───────────────────────────────────────────────────────────
+  // Compound: run both in one click (F5 on "Dev → Run & Attach")
+  "compounds": [
+    {
+      "name": "Dev → Run & Attach",
+      "configurations": [
+        "Run Dev",
+        "Attach to Electron"
+      ]
+    }
+  ]
+}
