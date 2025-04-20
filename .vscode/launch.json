@@ -8,38 +8,56 @@
       "name": "Run Dev",
       "type": "pwa-node",
       "request": "launch",
-      "runtimeExecutable": "pnpm",             // or "npm" / "yarn"
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "pnpm",             
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",                       
+        "--inspect=9229",           
+        "--remote-debugging-port=9222"
+      ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       "envFile": "${workspaceFolder}/.env",
-      
-      // this helps VS Code automatically attach to child processes (like electron)
-      "autoAttachChildProcesses": true  
+      "autoAttachChildProcesses": true
     },
 
     // ───────────────────────────────────────────────────────────
-    // 2) Attach debugger to Electron's --inspect=9229 port
+    // 2) Attach debugger to Electron's --inspect=9229 port (main)
     {
-      "name": "Attach to Electron",
+      "name": "Attach to Electron Main",
       "type": "pwa-node",
       "request": "attach",
       "port": 9229,
       "restart": true,
       "envFile": "${workspaceFolder}/.env",
-      
-      // enable sourcemap support and tell VS Code where to find your compiled JS
       "sourceMaps": true,
       "outFiles": [
-        "${workspaceFolder}/dist/electron/**/*.js"
+        "${workspaceFolder}/dist/electron/**/*.js",
+        "${workspaceFolder}/dist/src/**/*.js"
       ],
-
-      // if your maps use webpack paths, these overrides map them back to your files
       "sourceMapPathOverrides": {
         "webpack:///./*": "${workspaceFolder}/*",
         "webpack:///*":   "${workspaceFolder}/*"
       },
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
 
+    // ───────────────────────────────────────────────────────────
+    // 3) Attach debugger to Electron's remote‑debugging port 9222 (renderer)
+    {
+      "name": "Attach to Electron Renderer",
+      "type": "pwa-chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///./*": "${workspaceFolder}/*",
+        "webpack:///*":   "${workspaceFolder}/*"
+      },
       "skipFiles": [
         "<node_internals>/**"
       ]
@@ -48,13 +66,13 @@
   ],
 
   // ───────────────────────────────────────────────────────────
-  // Compound: run both in one click (F5 on "Dev → Run & Attach")
+  // Compound: launch & attach **all three** in one click (F5)
   "compounds": [
     {
-      "name": "Dev → Run & Attach",
+      "name": "Dev → Run & Attach All",
       "configurations": [
         "Run Dev",
-        "Attach to Electron"
+        "Attach to Electron Main"
       ]
     }
   ]

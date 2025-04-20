@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const nodeExternals = require('webpack-node-externals');
+const { sourceMapsEnabled } = require('process');
 
 const commonConfig = {
   mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
