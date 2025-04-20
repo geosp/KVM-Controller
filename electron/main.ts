@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain } from 'electron';
 import * as path from 'path';
 import { SerialPort } from 'serialport';
 import config, { getDevServerUrl } from './config'; // Import our config
@@ -9,6 +9,14 @@ let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    frame: true,
+    fullscreenable: false,
+    simpleFullscreen: false,
+    minimizable: true,
+    maximizable: true,
+    resizable: true,
+    titleBarStyle: 'customButtonsOnHover',
+    autoHideMenuBar: true,
     width: config.window.width,
     height: config.window.height,
     webPreferences: {
