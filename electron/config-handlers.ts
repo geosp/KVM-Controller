@@ -1,6 +1,7 @@
 // electron/config-handlers.ts
 import { ipcMain } from 'electron';
-import { ConfigManager, KvmConfig } from './configManager';
+import { KvmConfig } from '../shared/types';
+import { ConfigManager } from './configManager';
 
 // Create a singleton instance of the config manager
 const configManager = new ConfigManager();

@@ -9,13 +9,14 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@shared/*": ["shared/*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true
   },
-  "include": ["src/**/*", "electron/**/*"],
+  "include": ["src/**/*", "electron/**/*", "shared/**/*"],
   "exclude": ["node_modules", "dist"]
 }

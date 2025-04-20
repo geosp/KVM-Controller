@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useConfig } from '../contexts/ConfigContext';
 
 interface ComputerFormData {
@@ -6,6 +6,7 @@ interface ComputerFormData {
   portNumber: number;
   fqdn: string;
   macAddress: string;
+  commandPayload: string;
 }
 
 const ComputersConfigPanel: React.FC = () => {
@@ -17,8 +18,26 @@ const ComputersConfigPanel: React.FC = () => {
     label: '',
     portNumber: 1,
     fqdn: '',
-    macAddress: ''
+    macAddress: '',
+    commandPayload: ''
   });
+  
+  // Create a ref for the form element
+  const formRef = useRef<HTMLDivElement>(null);
+  
+  // Effect to scroll to and focus the form when it appears
+  useEffect(() => {
+    if (showForm && formRef.current) {
+      // Scroll the form into view
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Find the first input element and focus it
+      const firstInput = formRef.current.querySelector('input, select') as HTMLElement;
+      if (firstInput) {
+        setTimeout(() => firstInput.focus(), 300); // Small delay to ensure smooth scroll completes
+      }
+    }
+  }, [showForm, editingId]);
   
   // Reset form data
   const resetForm = () => {
@@ -26,7 +45,8 @@ const ComputersConfigPanel: React.FC = () => {
       label: '',
       portNumber: 1,
       fqdn: '',
-      macAddress: ''
+      macAddress: '',
+      commandPayload: ''
     });
     setEditingId(null);
   };
@@ -45,7 +65,8 @@ const ComputersConfigPanel: React.FC = () => {
         label: computer.label,
         portNumber: computer.portNumber,
         fqdn: computer.fqdn || '',
-        macAddress: computer.macAddress || ''
+        macAddress: computer.macAddress || '',
+        commandPayload: computer.commandPayload || ''
       });
       setEditingId(id);
       setShowForm(true);
@@ -196,7 +217,7 @@ const ComputersConfigPanel: React.FC = () => {
       
       {/* Add/Edit form */}
       {showForm && (
-        <div className="mb-6 p-4 border border-gray-700 rounded">
+        <div ref={formRef} className="mb-6 p-4 border border-gray-700 rounded">
           <h3 className="text-lg font-medium text-gray-200 mb-4">
             {editingId ? 'Edit Computer' : 'Add Computer'}
           </h3>
@@ -229,6 +250,21 @@ const ComputersConfigPanel: React.FC = () => {
                     <option key={num} value={num}>PC {num}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Command Payload
+                </label>
+                <input 
+                  type="text" 
+                  className="w-full border border-gray-600 rounded px-3 py-2 bg-gray-700 text-gray-200"
+                  value={formData.commandPayload}
+                  onChange={(e) => setFormData({...formData, commandPayload: e.target.value})}
+                  placeholder="X1,1$"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Custom command format for KVM switch. Leave empty to use default format based on port number.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -310,6 +346,9 @@ const ComputersConfigPanel: React.FC = () => {
               <div>
                 <div className="font-medium">{computer.label}</div>
                 <div className="text-sm text-gray-400">KVM Port: PC {computer.portNumber}</div>
+                {computer.commandPayload && (
+                  <div className="text-sm text-gray-400">Command: {computer.commandPayload}</div>
+                )}
                 {computer.fqdn && (
                   <div className="text-sm text-gray-400">FQDN: {computer.fqdn}</div>
                 )}

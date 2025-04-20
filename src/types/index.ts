@@ -1,3 +1,7 @@
+import { KvmConfig } from '../../shared/types';
+
+export { KvmConfig }
+
 export interface SerialPortOptions {
   path: string;
   baudRate: number;
@@ -26,30 +30,6 @@ export interface SerialApi {
   onError: (callback: (error: string) => void) => () => void;
   isAutoConnected: () => Promise<{ connected: boolean }>;
   onAutoConnect: (callback: (success: boolean) => void) => () => void;
-}
-
-export interface KvmConfig {
-  version: string;
-  configurationActive: boolean;
-  autoConnect: boolean;
-  connection: {
-    port: string;
-    baudRate: number;
-    dataBits: number;
-    parity: 'none' | 'even' | 'odd' | 'mark' | 'space';
-    stopBits: number;
-  };
-  computers: Array<{
-    id: string;
-    label: string;
-    portNumber: number;
-    fqdn?: string;
-    macAddress?: string;
-  }>;
-  autoSwitch: {
-    enabled: boolean;
-    interval: number; // seconds
-  };
 }
 
 export interface ConfigApi {

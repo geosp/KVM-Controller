@@ -1,31 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-
-// Define our configuration interface
-export interface KvmConfig {
-  version: string;
-  configurationActive: boolean;
-  autoConnect: boolean;
-  connection: {
-    port: string;
-    baudRate: number;
-    dataBits: number;
-    parity: 'none' | 'even' | 'odd' | 'mark' | 'space';
-    stopBits: number;
-  };
-  computers: Array<{
-    id: string;
-    label: string;
-    portNumber: number;
-    fqdn?: string;
-    macAddress?: string;
-  }>;
-  autoSwitch: {
-    enabled: boolean;
-    interval: number; // seconds
-  };
-}
+import { KvmConfig } from '../shared/types';
+import { generateDefaultCommandPayload } from '../shared/utils';
 
 // Default configuration
 const defaultConfig: KvmConfig = {
@@ -158,6 +135,12 @@ export class ConfigManager {
   // Add a computer
   public addComputer(computer: Omit<KvmConfig['computers'][0], 'id'>): string {
     const id = Date.now().toString();
+    
+    // Add default commandPayload if not provided
+    if (!computer.commandPayload) {
+      computer.commandPayload = generateDefaultCommandPayload(computer.portNumber);
+    }
+    
     this.config.computers.push({
       id,
       ...computer
@@ -170,6 +153,11 @@ export class ConfigManager {
   public updateComputer(id: string, computer: Partial<Omit<KvmConfig['computers'][0], 'id'>>): boolean {
     const index = this.config.computers.findIndex(c => c.id === id);
     if (index !== -1) {
+      // If portNumber is updated but commandPayload isn't, update the default commandPayload
+      if (computer.portNumber && !computer.commandPayload) {
+        computer.commandPayload = generateDefaultCommandPayload(computer.portNumber);
+      }
+      
       this.config.computers[index] = {
         ...this.config.computers[index],
         ...computer

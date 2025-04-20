@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { SerialPort, SerialPortOptions } from '../types';
 import { useConfig } from './ConfigContext';
+import { generateDefaultCommandPayload } from '../../shared/utils';
 
 interface SerialContextType {
   isConnected: boolean;
@@ -160,8 +161,17 @@ export const SerialProvider: React.FC<SerialProviderProps> = ({ children }) => {
   const switchToComputer = async (pcNumber: number) => {
     try {
       if (!isConnected) throw new Error('Not connected');
-      const code = pcNumber <= 9 ? pcNumber.toString() : 'A';
-      const cmd = `X${code},1$`;
+      
+      // Find the computer configuration for this port number
+      const computerConfig = config?.computers.find(c => c.portNumber === pcNumber);
+      
+      if (!computerConfig) {
+        throw new Error(`No configuration found for port ${pcNumber}`);
+      }
+      
+      // Use the configured command payload, or fall back to the default format
+      const cmd = computerConfig.commandPayload || generateDefaultCommandPayload(pcNumber);
+      
       const res = await window.serialApi.write(cmd);
       if (res.success) {
         setActiveComputer(pcNumber);
