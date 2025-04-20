@@ -106,12 +106,6 @@ const App: React.FC = () => {
           </header>
           
           <AppContent />
-          
-          <div className="text-sm text-gray-500 text-center mt-8">
-            <p>
-              KVM Control - Electron App
-            </p>
-          </div>
         </div>
       </SerialProvider>
     </ConfigProvider>
