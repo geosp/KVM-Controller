@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSerial } from '../contexts/SerialContext';
+import { useConfig } from '../contexts/ConfigContext';
+import _ from 'lodash';
 
 const ConnectionPanel: React.FC = () => {
   const {
@@ -16,7 +18,30 @@ const ConnectionPanel: React.FC = () => {
     setSelectedPort
   } = useSerial();
   
+  const { config, updateConfig } = useConfig();
+  
   const [showSettings, setShowSettings] = useState(false);
+  
+  // When selectedPort or serialOptions change, update the configuration
+  useEffect(() => {
+    if (!config) return;
+  
+    // build the new connection object
+    const newConn = {
+      ...config.connection,
+      port:      selectedPort,
+      baudRate:  serialOptions.baudRate,
+      dataBits:  serialOptions.dataBits,
+      parity:    serialOptions.parity,
+      stopBits:  serialOptions.stopBits,
+    };
+  
+    // only update if it’s actually changed
+    if (!_.isEqual(config.connection, newConn)) {
+      updateConfig({ connection: newConn });
+    }
+  
+  }, [selectedPort, serialOptions]);
   
   const handleConnect = () => {
     if (isConnected) {

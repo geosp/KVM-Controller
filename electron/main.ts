@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import { SerialPort } from 'serialport';
 import config, { getDevServerUrl } from './config'; // Import our config
+import { registerConfigHandlers } from './config-handlers';
+import { ConfigManager } from './configManager';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -45,28 +47,7 @@ let port: SerialPort | null = null;
 
 ipcMain.handle('serial:connect', async (_, options) => {
   try {
-    if (port) {
-      await new Promise<void>((resolve) => {
-        port?.close(() => resolve());
-      });
-    }
-    
-    port = new SerialPort({
-      path: options.path,
-      baudRate: options.baudRate,
-      dataBits: options.dataBits,
-      parity: options.parity,
-      stopBits: options.stopBits
-    });
-    
-    port.on('error', (err) => {
-      mainWindow?.webContents.send('serial:error', err.message);
-    });
-    
-    port.on('data', (data) => {
-      mainWindow?.webContents.send('serial:data', data.toString());
-    });
-    
+    await connectToPort(options);
     return { success: true };
   } catch (error) {
     return { success: false, error: (error as Error).message };
@@ -93,6 +74,10 @@ ipcMain.handle('serial:write', async (_, data) => {
   }
 });
 
+ipcMain.handle('serial:is-connected', () => {
+  return { connected: port !== null && port.isOpen };
+});
+
 // Disconnect serial port
 ipcMain.handle('serial:disconnect', async () => {
   try {
@@ -108,8 +93,87 @@ ipcMain.handle('serial:disconnect', async () => {
   }
 });
 
+ipcMain.handle('serial:is-auto-connected', () => {
+  return { connected: port !== null };
+});
+
+function setupAutoConnect() {
+  // Get the config
+  const configManager = new ConfigManager();
+  const config = configManager.getConfig();
+  
+  // If auto-connect is enabled and we have a port configured
+  if (config.autoConnect && config.connection.port) {
+    console.log('Auto-connect enabled, attempting to connect to', config.connection.port);
+    
+    // Use a small delay to ensure the renderer process is ready
+    setTimeout(() => {
+      if (mainWindow) {
+        // Connect using the saved connection options
+        const options = {
+          path: config.connection.port,
+          baudRate: config.connection.baudRate,
+          dataBits: config.connection.dataBits,
+          parity: config.connection.parity,
+          stopBits: config.connection.stopBits
+        };
+        
+        try {
+          connectToPort(options)
+            .then(() => {
+              console.log('Auto-connect successful');
+              mainWindow?.webContents.send('serial:auto-connected', true);
+            })
+            .catch(err => {
+              console.error('Auto-connect failed:', err);
+              mainWindow?.webContents.send('serial:auto-connected', false);
+            });
+        } catch (error) {
+          console.error('Auto-connect error:', error);
+          mainWindow?.webContents.send('serial:auto-connected', false);
+        }
+      }
+    }, 1000);
+  }
+}
+
+async function connectToPort(options: any) {
+  if (port) {
+    await new Promise<void>((resolve) => {
+      port?.close(() => resolve());
+    });
+  }
+  
+  console.log('Connecting to port with options:', options);
+  
+  port = new SerialPort({
+    path: options.path,
+    baudRate: options.baudRate,
+    dataBits: options.dataBits,
+    parity: options.parity,
+    stopBits: options.stopBits
+  });
+  
+  port.on('error', (err) => {
+    console.error('Serial port error:', err.message);
+    mainWindow?.webContents.send('serial:error', err.message);
+  });
+  
+  port.on('data', (data) => {
+    mainWindow?.webContents.send('serial:data', data.toString());
+  });
+  
+  return { success: true };
+}
+
+
 app.whenReady().then(() => {
+
+  registerConfigHandlers();
+  
   createWindow();
+
+  setupAutoConnect();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -119,14 +183,28 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  // Close serial port before quitting
+  if (port) {
+    try {
+      port.close();
+      port = null;
+    } catch (e) {
+      console.error('Error closing port:', e);
+    }
+  }
+  
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// Clean up on quit
 app.on('quit', () => {
   if (port) {
-    port.close();
+    try {
+      port.close();
+      port = null;
+    } catch (e) {
+      console.error('Error closing port:', e);
+    }
   }
 });
