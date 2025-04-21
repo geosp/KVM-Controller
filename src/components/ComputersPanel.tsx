@@ -1,10 +1,10 @@
-// src/components/ComputersPanel.tsx
 import React from 'react';
 import { useSerial } from '../contexts/SerialContext';
 import { useConfig } from '../contexts/ConfigContext';
+import ComputerButton from './ComputerButton';
 
 const ComputersPanel: React.FC = () => {
-  const { isConnected, activeComputer, lastCommand, switchToComputer } = useSerial();
+  const { isConnected, activeComputer, lastCommand } = useSerial();
   const { config } = useConfig();
   
   // If no configuration or no computers, show a message
@@ -28,19 +28,17 @@ const ComputersPanel: React.FC = () => {
             'None'}
         </span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
         {config.computers.map((computer) => (
-          <button
+          <ComputerButton
             key={computer.id}
-            className={`
-              ${computer.portNumber === activeComputer ? 'btn-active' : 'btn-secondary'}
-              ${!isConnected ? 'btn-disabled' : ''}
-            `}
-            onClick={() => switchToComputer(computer.portNumber)}
-            disabled={!isConnected}
-          >
-            {computer.label}
-          </button>
+            id={computer.id}
+            label={computer.label}
+            portNumber={computer.portNumber}
+            macAddress={computer.macAddress}
+            fqdn={computer.fqdn}
+            isActive={computer.portNumber === activeComputer}
+          />
         ))}
       </div>
       {lastCommand && (

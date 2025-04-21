@@ -37,3 +37,9 @@ contextBridge.exposeInMainWorld('configApi', {
   removeComputer: (id: string) => ipcRenderer.invoke('config:remove-computer', id),
   reorderComputers: (orderedIds: string[]) => ipcRenderer.invoke('config:reorder-computers', orderedIds)
 });
+
+// Expose Wake-on-LAN API
+contextBridge.exposeInMainWorld('wolApi', {
+  wake: (macAddress: string) => ipcRenderer.invoke('wol:wake', macAddress),
+  checkStatus: (hostname: string) => ipcRenderer.invoke('wol:check-status', hostname)
+});

@@ -3,14 +3,13 @@
   "version": "1.0.0",
   "description": "KVM Remote Control via RS232",
   "main": "dist/electron/main.js",
-  
   "scripts": {
-    "start":   "cross-env NODE_ENV=production electron --no-sandbox .",
-    "build:dev":  "cross-env NODE_ENV=development webpack --config webpack.config.js --mode development && electron-builder",
+    "start": "cross-env NODE_ENV=production electron --no-sandbox .",
+    "build:dev": "cross-env NODE_ENV=development webpack --config webpack.config.js --mode development && electron-builder",
     "build:prod": "cross-env NODE_ENV=production    webpack --config webpack.config.js --mode production  && electron-builder",
-    "dev":     "dotenv -e .env -- concurrently \"webpack serve --config webpack.config.js --port $DEV_SERVER_PORT\" \"wait-on http://$DEV_SERVER_HOST:$DEV_SERVER_PORT && cross-env NODE_ENV=development electron --inspect=9229 --remote-debugging-port=9222 .\"",
+    "dev": "dotenv -e .env -- concurrently \"webpack serve --config webpack.config.js --port $DEV_SERVER_PORT\" \"wait-on http://$DEV_SERVER_HOST:$DEV_SERVER_PORT && cross-env NODE_ENV=development electron --inspect=9229 --remote-debugging-port=9222 .\"",
     "compile": "webpack --config webpack.config.js",
-    "watch":   "webpack --config webpack.config.js --watch"
+    "watch": "webpack --config webpack.config.js --watch"
   },
   "keywords": [
     "kvm",
@@ -29,7 +28,7 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.17.16",
-    "@types/node": "^18.16.0",
+    "@types/node": "^18.19.86",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.14",

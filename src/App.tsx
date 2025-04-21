@@ -1,7 +1,7 @@
-// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import { SerialProvider } from './contexts/SerialContext';
 import { ConfigProvider, useConfig } from './contexts/ConfigContext';
+import { WolProvider } from './contexts/WolContext';
 import ConnectionPanel from './components/ConnectionPanel';
 import ComputersPanel from './components/ComputersPanel';
 import AutoSwitchPanel from './components/AutoSwitchPanel';
@@ -99,14 +99,15 @@ const App: React.FC = () => {
   return (
     <ConfigProvider>
       <SerialProvider>
-        <div className="container mx-auto px-4 py-8 max-w-xl">
-          <header className="mb-8">
-            <h1 className="text-3xl font-bold text-center text-gray-100">KVM Remote Control</h1>
-            <p className="text-center text-gray-400 mt-2">Control your KVM switch via RS232</p>
-          </header>
-          
-          <AppContent />
-        </div>
+        <WolProvider>
+          <div className="container mx-auto px-4 py-8 max-w-xl">
+            <header className="mb-8">
+              <h1 className="text-3xl font-bold text-center text-gray-100">KVM Remote Control</h1>
+              <p className="text-center text-gray-400 mt-2">Control your KVM switch via RS232</p>
+            </header>
+            <AppContent />
+          </div>
+        </WolProvider>
       </SerialProvider>
     </ConfigProvider>
   );

@@ -41,10 +41,16 @@ export interface ConfigApi {
   reorderComputers: (orderedIds: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
+export interface WolApi {
+  wake: (macAddress: string) => Promise<{ success: boolean; error?: string }>;
+  checkStatus: (hostname: string) => Promise<{ online: boolean; error?: string }>;
+}
+
 // Extend Window interface
 declare global {
   interface Window {
     serialApi: SerialApi;
     configApi: ConfigApi;
+    wolApi: WolApi;
   }
 }

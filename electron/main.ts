@@ -1,8 +1,9 @@
 import { app, BrowserWindow, Menu, ipcMain } from 'electron';
 import * as path from 'path';
 import { SerialPort } from 'serialport';
-import config, { getDevServerUrl } from './config'; // Import our config
+import config, { getDevServerUrl } from './config';
 import { registerConfigHandlers } from './config-handlers';
+import { registerWolHandlers } from './wol-handler'; 
 import { ConfigManager } from './configManager';
 
 let mainWindow: BrowserWindow | null = null;
@@ -178,6 +179,7 @@ async function connectToPort(options: any) {
 app.whenReady().then(() => {
 
   registerConfigHandlers();
+  registerWolHandlers();
   
   createWindow();
 
