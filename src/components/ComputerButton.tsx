@@ -157,21 +157,6 @@ const ComputerButton: React.FC<ComputerButtonProps> = ({
                 )}
               </button>
             )}
-            
-            {/* Edit Computer option */}
-            <button
-              className="flex items-center w-full px-4 py-2 text-sm text-white hover:bg-gray-700"
-              onClick={() => {
-                // This would be implemented to open the edit dialog
-                // You could use local state or a context to manage this
-                closeDropdown();
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-              </svg>
-              Edit Computer
-            </button>
           </div>
         </div>
       )}
