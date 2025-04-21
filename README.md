@@ -119,7 +119,7 @@ In the Remote tab:
 1. Click on the button corresponding to the computer you want to switch to
 2. The active computer will be highlighted in blue
 
-![Computer Switching Interface](screenshots/computer-switching.png)
+![Computer Switching Interface](screenshots/computer_switching.png)
 
 - **Blue Button**: Indicates the currently active computer
 - **Green Button**: Indicates a powered-on computer that is not currently active
@@ -132,7 +132,7 @@ In the Remote tab:
 2. Use the slider to set the interval between switches (5 seconds to 5 minutes)
 3. The application will automatically switch between your configured computers at the set interval
 
-![Auto-Switch Panel](screenshots/auto-switch.png)
+![Auto-Switch Panel](screenshots/auto_switch.png)
 
 The timer display shows the remaining time until the next automatic switch occurs. You can disable auto-switching at any time by toggling the switch off.
 
@@ -142,7 +142,7 @@ The timer display shows the remaining time until the next automatic switch occur
 2. If the computer is offline and has a MAC address configured, click "Wake Up"
 3. The application will send a Wake-on-LAN packet to the computer
 
-![Wake-on-LAN Feature](screenshots/wol-feature.png)
+![Wake-on-LAN Feature](screenshots/wol.png)
 
 The status indicator will update once the computer comes online, which may take 15-30 seconds depending on your computer's boot time.
 
