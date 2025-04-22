@@ -217,12 +217,17 @@ jobs:
             git log --pretty=format:"* %s (%h)" --no-merges $PREV_TAG..HEAD > changelog.txt
           fi
           
-          # Read the changelog file content
-          CHANGELOG_CONTENT=$(cat changelog.txt)
+          # Store the changelog content in a variable
+          CHANGELOG=$(cat changelog.txt)
           
-          # Set output for use in the next step
-          echo "changelog=$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          # Escape special characters for GitHub output
+          # Replace % with %25 (must be first), then newlines with %0A
+          CHANGELOG="${CHANGELOG//'%'/'%25'}"
+          CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
           
+          # Set the output
+          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+                    
       # Create GitHub Release
       - name: Create Release
         uses: softprops/action-gh-release@v1
