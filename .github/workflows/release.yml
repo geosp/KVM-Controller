@@ -27,10 +27,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           
@@ -98,9 +98,9 @@ jobs:
             echo "path=dist/*.AppImage" >> $GITHUB_OUTPUT
           fi
           
-      # Upload build artifacts
+      # Upload build artifacts - UPDATED to v4
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact-name.outputs.name }}
           path: ${{ steps.artifact-name.outputs.path }}
@@ -113,13 +113,13 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           
-      # Download all artifacts
+      # Download all artifacts - UPDATED to v4
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
           
@@ -131,9 +131,9 @@ jobs:
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -z "$PREV_TAG" ]; then
             # If there's no previous tag, get all commits
-            echo "CHANGELOG<<EOF" >> changelog.txt
-            git log --pretty=format:"* %s (%h)" --no-merges >> changelog.txt
-            echo "EOF" >> changelog.txt
+            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+            git log --pretty=format:"* %s (%h)" --no-merges >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
           else
             # Get commits between tags
             echo "CHANGELOG<<EOF" >> $GITHUB_ENV
@@ -150,7 +150,7 @@ jobs:
             # KVM Control v${{ needs.setup.outputs.version }}
             
             ## Changes
-            ${{ steps.generate_notes.outputs.changelog }}
+            ${{ env.CHANGELOG }}
             
             ## Installation
             - Windows: Download the .exe installer
