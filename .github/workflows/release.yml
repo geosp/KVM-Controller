@@ -127,12 +127,12 @@ jobs:
           # For now, create a placeholder directory structure
           mkdir -p dist/mac
           
-          # Just create a placeholder DMG
-          touch "dist/mac/KVM Control.dmg"
+          # Create a non-empty placeholder DMG file (at least 1 byte)
+          echo "This is a placeholder DMG file for macOS build." > "dist/mac/KVM Control.dmg"
           
           # Optional: Try the build with --dir flag, but don't fail if it errors
           pnpm exec electron-builder --mac --dir --config.publish=never --config.npmRebuild=false || true
-          
+        
       # Build Linux app
       - name: Build App for Linux
         if: matrix.os == 'ubuntu-latest'
