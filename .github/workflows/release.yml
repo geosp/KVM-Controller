@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -78,9 +80,16 @@ jobs:
           
       # Build the application
       - name: Build App
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pnpm run compile
           pnpm run build:prod
+          
+      # List the contents of the dist directory for debugging
+      - name: List dist directory
+        run: |
+          ls -la dist/
           
       # Determine artifact name based on platform
       - name: Set Artifact Name
@@ -89,16 +98,28 @@ jobs:
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             echo "name=kvm-control-${{ needs.setup.outputs.version }}-win" >> $GITHUB_OUTPUT
-            echo "path=dist/*.exe" >> $GITHUB_OUTPUT
+            # Look for .exe or setup files in various possible locations
+            if [ -d "dist/win-unpacked" ]; then
+              echo "path=dist/win-unpacked/*.exe" >> $GITHUB_OUTPUT
+            elif [ -f "dist/KVM Control Setup"*".exe" ]; then
+              echo "path=dist/KVM Control Setup"*".exe" >> $GITHUB_OUTPUT
+            else
+              echo "path=dist/*.exe" >> $GITHUB_OUTPUT
+            fi
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
             echo "name=kvm-control-${{ needs.setup.outputs.version }}-mac" >> $GITHUB_OUTPUT
-            echo "path=dist/*.dmg" >> $GITHUB_OUTPUT
+            # Look for .dmg files in various possible locations
+            if [ -d "dist/mac" ]; then
+              echo "path=dist/mac/*.dmg" >> $GITHUB_OUTPUT
+            else
+              echo "path=dist/*.dmg" >> $GITHUB_OUTPUT
+            fi
           else
             echo "name=kvm-control-${{ needs.setup.outputs.version }}-linux" >> $GITHUB_OUTPUT
             echo "path=dist/*.AppImage" >> $GITHUB_OUTPUT
           fi
           
-      # Upload build artifacts - UPDATED to v4
+      # Upload build artifacts
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -117,11 +138,16 @@ jobs:
         with:
           fetch-depth: 0
           
-      # Download all artifacts - UPDATED to v4
+      # Download all artifacts
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          
+      # List downloaded artifacts for debugging
+      - name: List artifacts
+        run: |
+          find artifacts -type f | sort
           
       # Generate release notes from commits
       - name: Generate Release Notes
@@ -157,9 +183,9 @@ jobs:
             - macOS: Download the .dmg file
             - Linux: Download the .AppImage file
             
-          files: |
-            artifacts/kvm-control-${{ needs.setup.outputs.version }}-win/*.exe
-            artifacts/kvm-control-${{ needs.setup.outputs.version }}-mac/*.dmg
-            artifacts/kvm-control-${{ needs.setup.outputs.version }}-linux/*.AppImage
+          files: artifacts/**/*
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
