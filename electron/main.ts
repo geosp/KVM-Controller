@@ -8,6 +8,10 @@ import { ConfigManager } from './configManager';
 
 let mainWindow: BrowserWindow | null = null;
 
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox');
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     frame: true,

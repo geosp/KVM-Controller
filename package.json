@@ -59,26 +59,40 @@
     "glob": "^11.0.1"
   },
   "build": {
+    "appId": "com.kvm.control",
+    "productName": "KVM Control",
+    "asar": true,
     "npmRebuild": false,
     "buildDependenciesFromSource": false,
     "asarUnpack": [
       "**/node_modules/@serialport/bindings-cpp/build/Release/*.node"
     ],
-    "appId": "com.kvm.control",
-    "productName": "KVM Control",
     "files": [
       "dist/**/*",
-      "public/**/*"
+      "node_modules/**/*",
+      "package.json"
     ],
-    "mac": {
-      "category": "public.app-category.utilities"
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
     },
-    "win": {
-      "target": "nsis"
+    "extraMetadata": {
+      "main": "dist/electron/main.js"
     },
     "linux": {
-      "target": "AppImage",
-      "category": "Utility"
+      "target": ["AppImage"],
+      "category": "Utility",
+      "executableName": "kvm-control",
+      "icon": "build/kvmc.png"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.utilities",
+      "icon": "build/kvmc.png"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/kvmc.png"
     }
   },
   "pnpm": {
