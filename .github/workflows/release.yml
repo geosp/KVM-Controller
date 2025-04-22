@@ -207,17 +207,21 @@ jobs:
         run: |
           # Find the previous tag
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          # Create a changelog file
           if [ -z "$PREV_TAG" ]; then
             # If there's no previous tag, get all commits
-            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-            git log --pretty=format:"* %s (%h)" --no-merges >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            git log --pretty=format:"* %s (%h)" --no-merges > changelog.txt
           else
             # Get commits between tags
-            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-            git log --pretty=format:"* %s (%h)" --no-merges $PREV_TAG..HEAD >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+            git log --pretty=format:"* %s (%h)" --no-merges $PREV_TAG..HEAD > changelog.txt
           fi
+          
+          # Read the changelog file content
+          CHANGELOG_CONTENT=$(cat changelog.txt)
+          
+          # Set output for use in the next step
+          echo "changelog=$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
           
       # Create GitHub Release
       - name: Create Release
@@ -228,7 +232,7 @@ jobs:
             # KVM Control v${{ needs.setup.outputs.version }}
             
             ## Changes
-            ${{ env.CHANGELOG }}
+            ${{ steps.generate_notes.outputs.changelog }}
             
             ## Installation
             - Windows: Download the .exe installer
