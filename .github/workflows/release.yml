@@ -138,10 +138,20 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: pnpm run build:prod
           
-      # List all files in dist
-      - name: List build output
+      # List all files in dist - PLATFORM SPECIFIC COMMANDS
+      - name: List build output (Unix)
+        if: matrix.os != 'windows-latest'
+        run: find dist -type f || echo "No dist directory found"
+        
+      - name: List build output (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: cmd
         run: |
-          find dist -type f 2>/dev/null || echo "No dist directory found"
+          if exist dist (
+            dir dist /s /b
+          ) else (
+            echo No dist directory found
+          )
           
       # Determine artifact name based on platform
       - name: Set Artifact Name
@@ -189,8 +199,7 @@ jobs:
           
       # List downloaded artifacts for debugging
       - name: List artifacts
-        run: |
-          find artifacts -type f 2>/dev/null || echo "No artifacts found"
+        run: find artifacts -type f || echo "No artifacts found"
           
       # Generate release notes from commits
       - name: Generate Release Notes
