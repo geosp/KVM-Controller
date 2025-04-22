@@ -78,13 +78,40 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libusb-1.0-0-dev libudev-dev
           
-      # Build the application
-      - name: Build App
+      # Compile step only
+      - name: Compile TypeScript
+        run: pnpm run compile
+      
+      # Modify electron-builder config to disable auto-update and publishing
+      - name: Update package.json for build
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            node -e "const pkg=require('./package.json'); pkg.build.publish=null; pkg.build.win.publish=null; pkg.build.npmRebuild=true; fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            node -e "const pkg=require('./package.json'); pkg.build.publish=null; pkg.build.mac.publish=null; pkg.build.npmRebuild=true; fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
+          else
+            node -e "const pkg=require('./package.json'); pkg.build.publish=null; pkg.build.linux.publish=null; pkg.build.npmRebuild=true; fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
+          fi
+          cat package.json
+          
+      # Build the application with explicit platform targeting
+      - name: Build App for Windows
+        if: matrix.os == 'windows-latest'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm run compile
-          pnpm run build:prod
+        run: pnpm exec electron-builder --windows --config.publish=never
+          
+      - name: Build App for macOS
+        if: matrix.os == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec electron-builder --mac --config.publish=never
+          
+      - name: Build App for Linux
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec electron-builder --linux --config.publish=never
           
       # List the contents of the dist directory for debugging
       - name: List dist directory
@@ -97,25 +124,13 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            echo "name=kvm-control-${{ needs.setup.outputs.version }}-win" >> $GITHUB_OUTPUT
-            # Look for .exe or setup files in various possible locations
-            if [ -d "dist/win-unpacked" ]; then
-              echo "path=dist/win-unpacked/*.exe" >> $GITHUB_OUTPUT
-            elif [ -f "dist/KVM Control Setup"*".exe" ]; then
-              echo "path=dist/KVM Control Setup"*".exe" >> $GITHUB_OUTPUT
-            else
-              echo "path=dist/*.exe" >> $GITHUB_OUTPUT
-            fi
+            echo "name=kvm-control-win" >> $GITHUB_OUTPUT
+            echo "path=dist/*.exe" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            echo "name=kvm-control-${{ needs.setup.outputs.version }}-mac" >> $GITHUB_OUTPUT
-            # Look for .dmg files in various possible locations
-            if [ -d "dist/mac" ]; then
-              echo "path=dist/mac/*.dmg" >> $GITHUB_OUTPUT
-            else
-              echo "path=dist/*.dmg" >> $GITHUB_OUTPUT
-            fi
+            echo "name=kvm-control-mac" >> $GITHUB_OUTPUT
+            echo "path=dist/*.dmg" >> $GITHUB_OUTPUT
           else
-            echo "name=kvm-control-${{ needs.setup.outputs.version }}-linux" >> $GITHUB_OUTPUT
+            echo "name=kvm-control-linux" >> $GITHUB_OUTPUT
             echo "path=dist/*.AppImage" >> $GITHUB_OUTPUT
           fi
           
@@ -131,6 +146,8 @@ jobs:
   release:
     needs: [setup, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code
