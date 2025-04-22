@@ -1,0 +1,165 @@
+name: Build and Release
+
+# Trigger on tag push events that match v*, e.g. v1.0.0, v20.15.10
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # Set the version from tag
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+  # Build the app for each platform
+  build:
+    needs: setup
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+          
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+          
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+            
+      - name: Install dependencies
+        run: pnpm install
+        
+      # Windows-specific steps (if needed)
+      - name: Windows Build Setup
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Install any Windows-specific build dependencies here if needed
+          
+      # macOS-specific steps (if needed)
+      - name: macOS Build Setup
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Install any macOS-specific build dependencies here if needed
+          
+      # Linux-specific steps
+      - name: Linux Build Setup
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libusb-1.0-0-dev libudev-dev
+          
+      # Build the application
+      - name: Build App
+        run: |
+          pnpm run compile
+          pnpm run build:prod
+          
+      # Determine artifact name based on platform
+      - name: Set Artifact Name
+        id: artifact-name
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            echo "name=kvm-control-${{ needs.setup.outputs.version }}-win" >> $GITHUB_OUTPUT
+            echo "path=dist/*.exe" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            echo "name=kvm-control-${{ needs.setup.outputs.version }}-mac" >> $GITHUB_OUTPUT
+            echo "path=dist/*.dmg" >> $GITHUB_OUTPUT
+          else
+            echo "name=kvm-control-${{ needs.setup.outputs.version }}-linux" >> $GITHUB_OUTPUT
+            echo "path=dist/*.AppImage" >> $GITHUB_OUTPUT
+          fi
+          
+      # Upload build artifacts
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.artifact-name.outputs.name }}
+          path: ${{ steps.artifact-name.outputs.path }}
+          retention-days: 5
+
+  # Create GitHub Release
+  release:
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      # Download all artifacts
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+          
+      # Generate release notes from commits
+      - name: Generate Release Notes
+        id: generate_notes
+        run: |
+          # Find the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            # If there's no previous tag, get all commits
+            echo "CHANGELOG<<EOF" >> changelog.txt
+            git log --pretty=format:"* %s (%h)" --no-merges >> changelog.txt
+            echo "EOF" >> changelog.txt
+          else
+            # Get commits between tags
+            echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+            git log --pretty=format:"* %s (%h)" --no-merges $PREV_TAG..HEAD >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
+          
+      # Create GitHub Release
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: KVM Control v${{ needs.setup.outputs.version }}
+          body: |
+            # KVM Control v${{ needs.setup.outputs.version }}
+            
+            ## Changes
+            ${{ steps.generate_notes.outputs.changelog }}
+            
+            ## Installation
+            - Windows: Download the .exe installer
+            - macOS: Download the .dmg file
+            - Linux: Download the .AppImage file
+            
+          files: |
+            artifacts/kvm-control-${{ needs.setup.outputs.version }}-win/*.exe
+            artifacts/kvm-control-${{ needs.setup.outputs.version }}-mac/*.dmg
+            artifacts/kvm-control-${{ needs.setup.outputs.version }}-linux/*.AppImage
+          draft: false
+          prerelease: false
