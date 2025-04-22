@@ -8,7 +8,7 @@ import { ConfigManager } from './configManager';
 
 let mainWindow: BrowserWindow | null = null;
 
-if (process.platform === 'linux') {
+if (process.platform === 'linux' && process.env.NODE_ENV != 'development') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
