@@ -79,11 +79,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      # Windows-specific steps
+      # Windows-specific steps - FIXED to use correct npm config options
       - name: Windows Build Setup
         if: matrix.os == 'windows-latest'
+        shell: bash
         run: |
-          npm config set msvs_version 2019
+          # Set environment variables for Windows native module compilation
+          echo "GYP_MSVS_VERSION=2019" >> $GITHUB_ENV
           
       # Linux-specific steps
       - name: Linux Build Setup
@@ -139,7 +141,7 @@ jobs:
       # List all files in dist
       - name: List build output
         run: |
-          find dist -type f | sort || echo "No dist directory found"
+          find dist -type f 2>/dev/null || echo "No dist directory found"
           
       # Determine artifact name based on platform
       - name: Set Artifact Name
@@ -188,7 +190,7 @@ jobs:
       # List downloaded artifacts for debugging
       - name: List artifacts
         run: |
-          find artifacts -type f | sort
+          find artifacts -type f 2>/dev/null || echo "No artifacts found"
           
       # Generate release notes from commits
       - name: Generate Release Notes
