@@ -21,6 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "@serialport/bindings-cpp": "^13.0.1",
+    "dotenv": "^16.5.0",
     "lodash": "^4.17.21",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -35,7 +36,6 @@
     "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",
     "css-loader": "^6.7.3",
-    "dotenv": "^16.5.0",
     "dotenv-cli": "^8.0.0",
     "electron": "25.0.0",
     "electron-builder": "^25.1.8",

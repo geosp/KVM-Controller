@@ -79,6 +79,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
+      # Update version number and artifact naming pattern in package.json
+      - name: Update version in package.json
+        shell: bash
+        run: |
+          node -e "const fs=require('fs'); const pkg=require('./package.json'); 
+          pkg.version='${{ needs.setup.outputs.version }}'; 
+          pkg.build.productName='KVM Control'; 
+          pkg.build.artifactName='KVM-Control-v${{ needs.setup.outputs.version }}-\${os}-\${arch}.\${ext}'; 
+          fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
+        
       # Windows-specific steps - FIXED to use correct npm config options
       - name: Windows Build Setup
         if: matrix.os == 'windows-latest'
@@ -128,7 +138,7 @@ jobs:
           mkdir -p dist/mac
           
           # Create a non-empty placeholder DMG file (at least 1 byte)
-          echo "This is a placeholder DMG file for macOS build." > "dist/mac/KVM Control.dmg"
+          echo "This is a placeholder DMG file for macOS build." > "dist/mac/KVM-Control-v${{ needs.setup.outputs.version }}-mac.dmg"
           
           # Optional: Try the build with --dir flag, but don't fail if it errors
           pnpm exec electron-builder --mac --dir --config.publish=never --config.npmRebuild=false || true
@@ -158,14 +168,15 @@ jobs:
         id: artifact-name
         shell: bash
         run: |
+          VERSION="${{ needs.setup.outputs.version }}"
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            echo "name=kvm-control-win" >> $GITHUB_OUTPUT
+            echo "name=kvm-control-v${VERSION}-win" >> $GITHUB_OUTPUT
             echo "path=dist/*.exe" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            echo "name=kvm-control-mac" >> $GITHUB_OUTPUT
+            echo "name=kvm-control-v${VERSION}-mac" >> $GITHUB_OUTPUT
             echo "path=dist/mac/*.dmg" >> $GITHUB_OUTPUT
           else
-            echo "name=kvm-control-linux" >> $GITHUB_OUTPUT
+            echo "name=kvm-control-v${VERSION}-linux" >> $GITHUB_OUTPUT
             echo "path=dist/*.AppImage" >> $GITHUB_OUTPUT
           fi
           

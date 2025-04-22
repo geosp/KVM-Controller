@@ -7,10 +7,7 @@ import { registerWolHandlers } from './wol-handler';
 import { ConfigManager } from './configManager';
 
 let mainWindow: BrowserWindow | null = null;
-
-if (process.platform === 'linux' && process.env.NODE_ENV != 'development') {
-  app.commandLine.appendSwitch('no-sandbox');
-}
+console.log('▶ NODE_ENV is:', process.env.NODE_ENV);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -31,9 +28,7 @@ function createWindow() {
     },
     backgroundColor: config.window.backgroundColor
   });
-
-  // In development, load from localhost, in production load from file
-  console.log('▶ NODE_ENV is:', process.env.NODE_ENV);
+  
   if (process.env.NODE_ENV === 'development') {
     // Load from webpack dev server in development using config
     mainWindow.loadURL(getDevServerUrl());
