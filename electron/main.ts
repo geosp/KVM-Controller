@@ -6,6 +6,8 @@ import { registerConfigHandlers } from './config-handlers';
 import { registerWolHandlers } from './wol-handler'; 
 import { ConfigManager } from './configManager';
 
+let isShuttingDown = false;
+
 let mainWindow: BrowserWindow | null = null;
 console.log('▶ NODE_ENV is:', process.env.NODE_ENV);
 
@@ -159,7 +161,10 @@ async function connectToPort(options: any) {
     baudRate: options.baudRate,
     dataBits: options.dataBits,
     parity: options.parity,
-    stopBits: options.stopBits
+    stopBits: options.stopBits,
+    rtscts: false,    // Disable hardware flow control
+    xon: false,       // Disable XON/XOFF flow control
+    xoff: false
   });
   
   port.on('error', (err) => {
@@ -191,12 +196,19 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
   // Close serial port before quitting
-  if (port) {
+  if (port && port.isOpen) {
     try {
-      port.close();
-      port = null;
+      await new Promise<void>((resolve) => {
+        port?.close(() => {
+          port = null;
+          resolve();
+        });
+      });
     } catch (e) {
       console.error('Error closing port:', e);
     }
@@ -205,15 +217,32 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+  
+  isShuttingDown = false;
 });
 
-app.on('quit', () => {
-  if (port) {
+app.on('before-quit', async (event) => {
+  if (isShuttingDown) return;
+  
+  // Prevent the app from quitting immediately
+  event.preventDefault();
+  isShuttingDown = true;
+  
+  // Close serial port
+  if (port && port.isOpen) {
     try {
-      port.close();
-      port = null;
+      await new Promise<void>((resolve) => {
+        port?.close(() => {
+          port = null;
+          resolve();
+        });
+      });
     } catch (e) {
-      console.error('Error closing port:', e);
+      console.error('Error closing port during before-quit:', e);
     }
   }
+  
+  // Now allow the quit to proceed
+  isShuttingDown = false;
+  app.quit();
 });
