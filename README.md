@@ -56,9 +56,25 @@ The Settings view is where you configure your setup:
 3. Launch KVM Control from your Applications folder
 
 ### Linux
-1. Download the latest `KVM-Control.AppImage` from the releases page
-2. Make the AppImage executable: `chmod +x KVM-Control.AppImage`
-3. Run the application: `./KVM-Control.AppImage`
+1. Download the latest `KVM-Control-vX.X.X-linux-x86_64.AppImage` from the releases page
+2. The application file will be named something like this KVM-Control-v0.0.18-linux-x86_64.AppImage, rename it to `KVM-Control.AppImage`
+3. Make the AppImage executable: `chmod +x KVM-Control.AppImage`
+4. Run the application: `./KVM-Control.AppImage --no-sandbox`
+5. Optionally create a launcher in your desktop like this:
+
+```
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=KVM-Control
+Comment=Launch the KVM-Control Application
+Exec=/home/geo/Apps/KVM-Control.AppImage --no-sandbox
+Icon=preferences-desktop-remote-desktop
+Terminal=false
+Categories=Utility;
+Path=
+StartupNotify=false
+```
 
 ## Getting Started
 
