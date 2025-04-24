@@ -130,11 +130,23 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: pnpm run build:prod
           
-      # Use a simplified build for macOS that skips native modules
+      # Buiild MacOS app
       - name: Build App for macOS
         if: matrix.os == 'macos-latest'
-        run: pnpm run build:prod
-        
+        run: |
+          # First, ensure electron-builder is installed
+          npm install -g electron-builder
+          
+          # Run the build with verbose logging
+          pnpm run build:prod
+          
+          # List all files to see where the actual output is
+          find dist -type f
+          
+          # If the DMG is somewhere else, copy it to the expected location
+          mkdir -p dist/mac
+          [ -f dist/*.dmg ] && cp dist/*.dmg dist/mac/ || echo "No DMG found in dist folder"
+           
       # Build Linux app
       - name: Build App for Linux
         if: matrix.os == 'ubuntu-latest'
