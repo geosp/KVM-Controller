@@ -108,16 +108,16 @@ jobs:
       - name: Compile TypeScript
         run: pnpm run compile
       
-      # For macOS, skip building native modules
+      # Configure for macOS
       - name: Configure for macOS
         if: matrix.os == 'macos-latest'
         run: |
-          # Create placeholder directory structure
-          mkdir -p node_modules/@serialport/bindings-cpp/build/Release
-          echo "// Placeholder file" > node_modules/@serialport/bindings-cpp/build/Release/bindings.node
+          # Ensure native module dependencies are properly configured
+          # This is needed for serialport to work correctly
+          node -e "const fs=require('fs'); const pkg=require('./package.json'); pkg.build.publish=null; pkg.build.npmRebuild=true; pkg.build.asarUnpack=['**/node_modules/@serialport/bindings-cpp/build/Release/*.node']; fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
           
-          # Disable native module rebuilding in package.json
-          node -e "const fs=require('fs'); const pkg=require('./package.json'); pkg.build.publish=null; pkg.build.npmRebuild=false; pkg.build.asarUnpack=[]; fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
+          # Rebuild native modules for Electron
+          npx electron-rebuild -f -w serialport
       
       # Configure for Windows/Linux
       - name: Configure for Windows/Linux
@@ -133,15 +133,7 @@ jobs:
       # Use a simplified build for macOS that skips native modules
       - name: Build App for macOS
         if: matrix.os == 'macos-latest'
-        run: |
-          # For now, create a placeholder directory structure
-          mkdir -p dist/mac
-          
-          # Create a non-empty placeholder DMG file (at least 1 byte)
-          echo "This is a placeholder DMG file for macOS build." > "dist/mac/KVM-Control-v${{ needs.setup.outputs.version }}-mac.dmg"
-          
-          # Optional: Try the build with --dir flag, but don't fail if it errors
-          pnpm exec electron-builder --mac --dir --config.publish=never --config.npmRebuild=false || true
+        run: pnpm run build:prod
         
       # Build Linux app
       - name: Build App for Linux
