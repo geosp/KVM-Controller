@@ -22,18 +22,28 @@ const AutoSwitchPanel: React.FC = () => {
   
   // Check computer statuses when auto-switch is enabled
   useEffect(() => {
-    if (autoSwitchEnabled) {
+    // Only set up the interval if auto-switch is enabled
+    if (autoSwitchEnabled && isConnected) {
+      console.log('Setting up status check interval');
+      
       // Check statuses immediately when enabled
       checkAllComputerStatus();
       
       // Set up periodic checking when auto-switch is on
       const statusInterval = setInterval(() => {
-        checkAllComputerStatus();
+        if (isConnected) {  // Double-check we're still connected before checking
+          checkAllComputerStatus();
+        }
       }, 15000); // Check every 15 seconds
       
-      return () => clearInterval(statusInterval);
+      // Clean up the interval when the effect dependencies change or component unmounts
+      return () => {
+        console.log('Clearing status check interval');
+        clearInterval(statusInterval);
+      };
     }
-  }, [autoSwitchEnabled, checkAllComputerStatus]);
+    // No cleanup needed if the interval wasn't created
+  }, [autoSwitchEnabled, isConnected, checkAllComputerStatus]);
   
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -104,30 +114,42 @@ const AutoSwitchPanel: React.FC = () => {
   
   // Update config when auto switch settings change
   useEffect(() => {
-    if (config) {
-      // Update config only if values have changed and we're connected
-      if (config.autoSwitch.interval !== autoSwitchInterval && isConnected) {
+    if (config && isConnected) {
+      // Update config only if interval value has changed
+      const configurationChanged = 
+        config.autoSwitch.interval !== autoSwitchInterval ||
+        config.autoSwitch.enabled !== autoSwitchEnabled;
+      
+      if (configurationChanged) {
         // In a real implementation, we would call:
-        // updateConfig({ autoSwitch: { ...config.autoSwitch, interval: autoSwitchInterval, enabled: autoSwitchEnabled } });
+        // updateConfig({ 
+        //   autoSwitch: { 
+        //     interval: autoSwitchInterval, 
+        //     enabled: autoSwitchEnabled 
+        //   } 
+        // });
         // But we're not implementing that here to keep the change focused
       }
     }
   }, [autoSwitchInterval, autoSwitchEnabled, isConnected, config]);
   
-  // Check if we have at least one online computer
-  const hasOnlineComputers = (): boolean => {
-    if (!config || config.computers.length < 2) return false;
+  // Memoize online computer check to prevent unnecessary recalculations
+  const onlineComputersCount = React.useMemo(() => {
+    if (!config || !config.computers.length) return 0;
     
     // Count online computers
-    const onlineCount = config.computers.filter(computer => {
+    return config.computers.filter(computer => {
       // If no fqdn or mac, we can't check its status, so count it in
       if (!computer.fqdn || !computer.macAddress) return true;
       // Otherwise check if it's online
       return computerStatus[computer.id] === true;
     }).length;
-    
-    return onlineCount >= 2; // Need at least 2 for switching
-  };
+  }, [config, computerStatus]);
+  
+  // Check if we have at least one online computer
+  const hasOnlineComputers = React.useCallback((): boolean => {
+    return onlineComputersCount >= 2; // Need at least 2 for switching
+  }, [onlineComputersCount]);
   
   const handleToggleAutoSwitch = () => {
     const newState = !autoSwitchEnabled;
