@@ -1,33 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSerial } from '../contexts/SerialContext';
 import { useConfig } from '../contexts/ConfigContext';
 import { useWol } from '../contexts/WolContext';
 
+/**
+ * An optimized auto-switch panel that only checks computer status
+ * at the moment of switching, not continuously
+ */
 const AutoSwitchPanel: React.FC = () => {
   const { isConnected, activeComputer, switchToComputer } = useSerial();
-  const { config, updateConfig } = useConfig();
-  const { computerStatus, checkAllComputerStatus } = useWol();
+  const { config } = useConfig();
+  const { checkAllComputerStatus, computerStatus, refreshComputerStatus } = useWol();
   
-  // Component state
+  // Core state
   const [autoSwitchEnabled, setAutoSwitchEnabled] = useState(false);
-  const [autoSwitchInterval, setAutoSwitchInterval] = useState(30);
+  const [autoSwitchInterval, setAutoSwitchInterval] = useState(30); // seconds
   const [timeRemaining, setTimeRemaining] = useState(30);
   
-  // References to hold timer IDs for cleanup
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const statusCheckRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // References to current values to avoid stale closures
-  const enabledRef = useRef(autoSwitchEnabled);
-  const intervalRef = useRef(autoSwitchInterval);
-  const activeComputerRef = useRef(activeComputer);
-  
-  // Update refs when values change
-  useEffect(() => {
-    enabledRef.current = autoSwitchEnabled;
-    intervalRef.current = autoSwitchInterval;
-    activeComputerRef.current = activeComputer;
-  }, [autoSwitchEnabled, autoSwitchInterval, activeComputer]);
+  // Single timer reference
+  const timerIdRef = React.useRef<number | null>(null);
   
   // Initialize from config
   useEffect(() => {
@@ -37,94 +28,98 @@ const AutoSwitchPanel: React.FC = () => {
     }
   }, [config]);
   
-  // Handle toggle
+  // Handle connection status changes
+  useEffect(() => {
+    if (!isConnected && autoSwitchEnabled) {
+      // Disable auto-switching when disconnected
+      setAutoSwitchEnabled(false);
+    }
+  }, [isConnected, autoSwitchEnabled]);
+  
+  // Find and switch to the next computer - with just-in-time status check
+  const switchToNextComputer = async () => {
+    if (!config || !isConnected) return;
+    
+    // Check computer status at the moment of switching
+    await checkAllComputerStatus();
+    
+    // Get available computers based on the fresh status
+    const availableComputers = [...config.computers]
+      .filter(computer => {
+        // If no FQDN/MAC, include it (can't check status)
+        if (!computer.fqdn || !computer.macAddress) return true;
+        
+        // Otherwise, include only if it's online
+        return computerStatus[computer.id] === true;
+      })
+      .sort((a, b) => a.portNumber - b.portNumber);
+    
+    if (availableComputers.length < 2) {
+      console.log('Not enough available computers for switching');
+      return;
+    }
+    
+    // Find current computer in the available list
+    const currentIndex = availableComputers.findIndex(c => c.portNumber === activeComputer);
+    
+    // Get next index with wraparound
+    const nextIndex = (currentIndex === -1 || currentIndex === availableComputers.length - 1) 
+      ? 0 : currentIndex + 1;
+    
+    // Switch to next computer
+    if (nextIndex >= 0 && nextIndex < availableComputers.length) {
+      const nextComputer = availableComputers[nextIndex].portNumber;
+      switchToComputer(nextComputer);
+    }
+  };
+  
+  // Handle toggle 
   const handleToggleAutoSwitch = () => {
     const newState = !autoSwitchEnabled;
     setAutoSwitchEnabled(newState);
     setTimeRemaining(autoSwitchInterval);
-    
-    if (newState) {
-      checkAllComputerStatus();
-    }
   };
   
-  // Manage countdown timer and switching
+  // Main timer effect - simplified
   useEffect(() => {
-    // Clean up any existing timers
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    // Clear existing timer
+    if (timerIdRef.current !== null) {
+      window.clearInterval(timerIdRef.current);
+      timerIdRef.current = null;
     }
     
-    // Disable auto-switch if disconnected
-    if (!isConnected) {
-      if (autoSwitchEnabled) {
-        setAutoSwitchEnabled(false);
-      }
-      return;
-    }
-    
-    // No action if not enabled
-    if (!autoSwitchEnabled) {
-      return;
-    }
-    
-    // Check status just once when enabling
-    checkAllComputerStatus();
-    
-    // Countdown timer
-    timerRef.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          // Time to switch - find next computer
-          if (config && config.computers.length >= 2) {
-            // Simple approach: always use all computers
-            const computers = [...config.computers].sort((a, b) => a.portNumber - b.portNumber);
-            
-            if (computers.length === 0) return autoSwitchInterval;
-            
-            // Find current computer index
-            const currentIndex = computers.findIndex(c => c.portNumber === activeComputerRef.current);
-            
-            // Get next index with wraparound
-            const nextIndex = (currentIndex === -1 || currentIndex === computers.length - 1) 
-              ? 0 
-              : currentIndex + 1;
-            
-            // Switch to next computer
-            const nextComputer = computers[nextIndex].portNumber;
-            switchToComputer(nextComputer);
+    // Set up new timer if enabled
+    if (autoSwitchEnabled && isConnected) {
+      timerIdRef.current = window.setInterval(() => {
+        setTimeRemaining(prevTime => {
+          if (prevTime <= 1) {
+            // Time to switch - call async function
+            switchToNextComputer();
+            return autoSwitchInterval;
           }
-          return autoSwitchInterval; // Reset timer
-        }
-        return prev - 1; // Decrement
-      });
-    }, 1000);
+          return prevTime - 1;
+        });
+      }, 1000);
+    }
     
     // Cleanup
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerIdRef.current !== null) {
+        window.clearInterval(timerIdRef.current);
+        timerIdRef.current = null;
+      }
     };
-  }, [
-    autoSwitchEnabled, 
-    isConnected, 
-    config, 
-    switchToComputer,
-    checkAllComputerStatus,
-    autoSwitchInterval
-  ]);
+  }, [autoSwitchEnabled, isConnected, autoSwitchInterval, switchToNextComputer]);
   
-  // Format time display
+  // Format time for display
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
-  // Check if we can enable auto-switch
-  const canEnableAutoSwitch = isConnected && 
-    config && 
-    config.computers.length >= 2;
+  // Check if we have at least 2 computers configured
+  const hasEnoughComputers = config && config.computers && config.computers.length >= 2;
   
   return (
     <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
@@ -136,7 +131,7 @@ const AutoSwitchPanel: React.FC = () => {
             className="sr-only peer"
             checked={autoSwitchEnabled}
             onChange={handleToggleAutoSwitch}
-            disabled={!canEnableAutoSwitch}
+            disabled={!isConnected || !hasEnoughComputers}
           />
           <div className={`
             w-11 h-6 rounded-full peer 
@@ -146,16 +141,20 @@ const AutoSwitchPanel: React.FC = () => {
             after:top-[2px] after:left-[2px] after:bg-gray-200 after:border-gray-500 
             after:border after:rounded-full after:h-5 after:w-5 after:transition-all
             ${autoSwitchEnabled ? 'bg-blue-600' : 'bg-gray-600'}
-            ${!canEnableAutoSwitch ? 'opacity-50 cursor-not-allowed' : ''}
+            ${!isConnected || !hasEnoughComputers ? 'opacity-50 cursor-not-allowed' : ''}
           `}></div>
         </label>
       </div>
       
-      {!canEnableAutoSwitch && (
+      {!isConnected && (
         <div className="text-yellow-500 text-sm mb-4">
-          {!isConnected 
-            ? "Connect to KVM switch to enable auto-switching" 
-            : "Configure at least 2 computers to enable auto-switching"}
+          Connect to KVM switch to enable auto-switching
+        </div>
+      )}
+      
+      {isConnected && !hasEnoughComputers && (
+        <div className="text-yellow-500 text-sm mb-4">
+          Configure at least 2 computers to enable auto-switching
         </div>
       )}
       
