@@ -1,162 +1,142 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSerial } from '../contexts/SerialContext';
 import { useConfig } from '../contexts/ConfigContext';
 import { useWol } from '../contexts/WolContext';
 
 const AutoSwitchPanel: React.FC = () => {
   const { isConnected, activeComputer, switchToComputer } = useSerial();
-  const { config } = useConfig();
+  const { config, updateConfig } = useConfig();
   const { computerStatus, checkAllComputerStatus } = useWol();
   
   const [autoSwitchEnabled, setAutoSwitchEnabled] = useState(false);
   const [autoSwitchInterval, setAutoSwitchInterval] = useState(30); // seconds
   const [timeRemaining, setTimeRemaining] = useState(autoSwitchInterval);
   
-  // Initialize states from config when loaded
+  // Use refs to avoid recreating interval functions
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const statusCheckRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Store mutable values in refs to avoid dependency issues in effects
+  const enabledRef = useRef(autoSwitchEnabled);
+  const intervalRef = useRef(autoSwitchInterval);
+  const activeRef = useRef(activeComputer);
+  
+  // Update refs when state changes
   useEffect(() => {
-    if (config && config.autoSwitch) {
+    enabledRef.current = autoSwitchEnabled;
+    intervalRef.current = autoSwitchInterval;
+    activeRef.current = activeComputer;
+  }, [autoSwitchEnabled, autoSwitchInterval, activeComputer]);
+  
+  // Initialize states from config when loaded (only once)
+  useEffect(() => {
+    if (config?.autoSwitch) {
       setAutoSwitchInterval(config.autoSwitch.interval);
-      // Don't auto-enable switching, just sync the interval
     }
   }, [config]);
   
-  // Check computer statuses when auto-switch is enabled
+  // Memoize online computer check
+  const onlineComputers = React.useMemo(() => {
+    if (!config?.computers || config.computers.length === 0) return [];
+    
+    return config.computers
+      .filter(computer => {
+        // Include computers without FQDN/MAC or those that are online
+        return (!computer.fqdn || !computer.macAddress) || computerStatus[computer.id] === true;
+      })
+      .sort((a, b) => a.portNumber - b.portNumber);
+  }, [config, computerStatus]);
+  
+  // Optimized function to find next computer
+  const findNextComputer = useCallback(() => {
+    if (!onlineComputers.length) return null;
+    
+    const currentIndex = onlineComputers.findIndex(c => c.portNumber === activeRef.current);
+    const nextIndex = currentIndex === -1 || currentIndex === onlineComputers.length - 1 ? 0 : currentIndex + 1;
+    
+    return onlineComputers[nextIndex]?.portNumber || null;
+  }, [onlineComputers]);
+  
+  // Combined interval effect that handles both timers
   useEffect(() => {
-    // Only set up the interval if auto-switch is enabled
-    if (autoSwitchEnabled && isConnected) {
-      console.log('Setting up status check interval');
-      
-      // Check statuses immediately when enabled
+    // Clear any existing intervals
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (statusCheckRef.current) clearInterval(statusCheckRef.current);
+    
+    if (!isConnected) {
+      if (autoSwitchEnabled) setAutoSwitchEnabled(false);
+      return;
+    }
+    
+    if (autoSwitchEnabled) {
+      // Check statuses immediately
       checkAllComputerStatus();
       
-      // Set up periodic checking when auto-switch is on
-      const statusInterval = setInterval(() => {
-        if (isConnected) {  // Double-check we're still connected before checking
+      // Status check interval (less frequent)
+      statusCheckRef.current = setInterval(() => {
+        if (enabledRef.current && isConnected) {
           checkAllComputerStatus();
         }
-      }, 15000); // Check every 15 seconds
+      }, 15000);
       
-      // Clean up the interval when the effect dependencies change or component unmounts
-      return () => {
-        console.log('Clearing status check interval');
-        clearInterval(statusInterval);
-      };
-    }
-    // No cleanup needed if the interval wasn't created
-  }, [autoSwitchEnabled, isConnected, checkAllComputerStatus]);
-  
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    
-    if (autoSwitchEnabled && isConnected) {
-      interval = setInterval(() => {
-        setTimeRemaining((prev) => {
+      // Countdown timer (more frequent)
+      timerRef.current = setInterval(() => {
+        setTimeRemaining(prev => {
           if (prev <= 1) {
-            // Time to switch to next computer
-            if (config && config.computers.length >= 2) {
-              // Get list of configured computers sorted by port number
-              // Filter for computers that are online (or have unknown status if no fqdn is set)
-              const configuredComputers = [...config.computers]
-                .filter(computer => {
-                  // If computer has no fqdn set, we can't check its status
-                  if (!computer.fqdn || !computer.macAddress) return true;
-                  
-                  // If we know computer is online, include it
-                  return computerStatus[computer.id] === true;
-                })
-                .sort((a, b) => a.portNumber - b.portNumber);
-              
-              if (configuredComputers.length === 0) {
-                console.log('No online computers available for auto-switching');
-                return autoSwitchInterval;
-              }
-              
-              // Find the index of current active computer
-              const currentIndex = configuredComputers.findIndex(
-                c => c.portNumber === activeComputer
-              );
-              
-              // Calculate next index (with wrapping)
-              const nextIndex = currentIndex === -1 || currentIndex === configuredComputers.length - 1
-                ? 0  // Wrap back to first computer
-                : currentIndex + 1;
-              
-              // Get the next computer and switch to it
-              const nextComputer = configuredComputers[nextIndex].portNumber;
-              
-              console.log(`Auto-switching to computer ${nextComputer} (index ${nextIndex})`);
-              
+            // Time to switch
+            const nextComputer = findNextComputer();
+            if (nextComputer !== null) {
               switchToComputer(nextComputer);
             }
-            return autoSwitchInterval;
+            return intervalRef.current; // Reset timer
           }
           return prev - 1;
         });
       }, 1000);
+    } else {
+      // Reset timer when disabled
+      setTimeRemaining(autoSwitchInterval);
     }
     
+    // Cleanup function
     return () => {
-      if (interval) clearInterval(interval);
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (statusCheckRef.current) clearInterval(statusCheckRef.current);
     };
-  }, [autoSwitchEnabled, isConnected, autoSwitchInterval, activeComputer, switchToComputer, config]);
-  
-  // Disable auto switch when disconnected
-  useEffect(() => {
-    if (!isConnected && autoSwitchEnabled) {
-      setAutoSwitchEnabled(false);
-    }
-  }, [isConnected, autoSwitchEnabled]);
+  }, [autoSwitchEnabled, isConnected, findNextComputer, switchToComputer, checkAllComputerStatus]);
   
   // Reset timer when interval changes
   useEffect(() => {
     setTimeRemaining(autoSwitchInterval);
   }, [autoSwitchInterval]);
   
-  // Update config when auto switch settings change
+  // Update config when auto switch settings change (debounced)
   useEffect(() => {
-    if (config && isConnected) {
-      // Update config only if interval value has changed
-      const configurationChanged = 
-        config.autoSwitch.interval !== autoSwitchInterval ||
-        config.autoSwitch.enabled !== autoSwitchEnabled;
-      
-      if (configurationChanged) {
-        // In a real implementation, we would call:
-        // updateConfig({ 
-        //   autoSwitch: { 
-        //     interval: autoSwitchInterval, 
-        //     enabled: autoSwitchEnabled 
-        //   } 
-        // });
-        // But we're not implementing that here to keep the change focused
-      }
-    }
-  }, [autoSwitchInterval, autoSwitchEnabled, isConnected, config]);
-  
-  // Memoize online computer check to prevent unnecessary recalculations
-  const onlineComputersCount = React.useMemo(() => {
-    if (!config || !config.computers.length) return 0;
+    if (!config || !isConnected) return;
     
-    // Count online computers
-    return config.computers.filter(computer => {
-      // If no fqdn or mac, we can't check its status, so count it in
-      if (!computer.fqdn || !computer.macAddress) return true;
-      // Otherwise check if it's online
-      return computerStatus[computer.id] === true;
-    }).length;
-  }, [config, computerStatus]);
-  
-  // Check if we have at least one online computer
-  const hasOnlineComputers = React.useCallback((): boolean => {
-    return onlineComputersCount >= 2; // Need at least 2 for switching
-  }, [onlineComputersCount]);
+    const shouldUpdate = 
+      config.autoSwitch.interval !== autoSwitchInterval ||
+      config.autoSwitch.enabled !== autoSwitchEnabled;
+    
+    if (shouldUpdate) {
+      const timer = setTimeout(() => {
+        updateConfig({
+          autoSwitch: {
+            interval: autoSwitchInterval,
+            enabled: autoSwitchEnabled
+          }
+        });
+      }, 500); // Debounce config updates
+      
+      return () => clearTimeout(timer);
+    }
+  }, [autoSwitchInterval, autoSwitchEnabled, isConnected, config, updateConfig]);
   
   const handleToggleAutoSwitch = () => {
     const newState = !autoSwitchEnabled;
     setAutoSwitchEnabled(newState);
     setTimeRemaining(autoSwitchInterval);
     
-    // If enabling, check all computer statuses
     if (newState) {
       checkAllComputerStatus();
     }
@@ -168,6 +148,9 @@ const AutoSwitchPanel: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
+  // Determine if there are enough online computers for switching
+  const hasEnoughComputers = onlineComputers.length >= 2;
+  
   return (
     <div className="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
       <div className="flex justify-between items-center mb-4">
@@ -178,7 +161,7 @@ const AutoSwitchPanel: React.FC = () => {
             className="sr-only peer"
             checked={autoSwitchEnabled}
             onChange={handleToggleAutoSwitch}
-            disabled={!isConnected || !config || config.computers.length < 2 || !hasOnlineComputers()}
+            disabled={!isConnected || !hasEnoughComputers}
           />
           <div className={`
             w-11 h-6 rounded-full peer 
@@ -188,7 +171,7 @@ const AutoSwitchPanel: React.FC = () => {
             after:top-[2px] after:left-[2px] after:bg-gray-200 after:border-gray-500 
             after:border after:rounded-full after:h-5 after:w-5 after:transition-all
             ${autoSwitchEnabled ? 'bg-blue-600' : 'bg-gray-600'}
-            ${!isConnected || !config || config.computers.length < 2 || !hasOnlineComputers() ? 'opacity-50 cursor-not-allowed' : ''}
+            ${!isConnected || !hasEnoughComputers ? 'opacity-50 cursor-not-allowed' : ''}
           `}></div>
         </label>
       </div>
